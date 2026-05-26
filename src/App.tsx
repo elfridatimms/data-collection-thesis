@@ -12,10 +12,12 @@ function AppInner() {
   const [mode, setMode] = useState<Mode>('elbow');
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
 
-  const { videoRef, devices, activeDeviceId, setActiveDeviceId, status, errorMessage, start } =
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const { stream, devices, activeDeviceId, setActiveDeviceId, status, errorMessage, start } =
     useCamera();
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { landmarkCount } = useTracker({
     videoRef,
     canvasRef,
@@ -48,10 +50,11 @@ function AppInner() {
       }
       main={
         <CameraView
-          ref={videoRef}
+          stream={stream}
           status={status}
           errorMessage={errorMessage}
           onStart={start}
+          videoRef={videoRef}
           canvasRef={canvasRef}
           landmarkCount={landmarkCount}
         />

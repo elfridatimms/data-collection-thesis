@@ -8,7 +8,7 @@ export type CameraDevice = {
 export type CameraStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error';
 
 export type UseCameraResult = {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  stream: MediaStream | null;
   devices: CameraDevice[];
   activeDeviceId: string | null;
   setActiveDeviceId: (id: string) => void;
@@ -18,8 +18,8 @@ export type UseCameraResult = {
 };
 
 export function useCamera(): UseCameraResult {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
@@ -43,26 +43,33 @@ export function useCamera(): UseCameraResult {
     if (s) {
       s.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+      setStream(null);
     }
   }, []);
 
   const start = useCallback(() => {
     if (status === 'loading' || status === 'ready') return;
+    console.log('[camera] start()');
     setErrorMessage(null);
     setStatus('loading');
 
     (async () => {
       try {
-        const initial = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        streamRef.current = initial;
-        if (videoRef.current) videoRef.current.srcObject = initial;
+        const next = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        console.log('[camera] getUserMedia ok, tracks:', next.getVideoTracks().length);
+        streamRef.current = next;
+        setStream(next);
 
         const cams = await refreshDevices();
         const currentId =
-          initial.getVideoTracks()[0]?.getSettings().deviceId ?? cams[0]?.deviceId ?? null;
+          next.getVideoTracks()[0]?.getSettings().deviceId ?? cams[0]?.deviceId ?? null;
         setActiveDeviceId(currentId);
         setStatus('ready');
       } catch (err) {
+        console.error('[camera] start() failed', err);
         const name = (err as DOMException)?.name;
         if (name === 'NotAllowedError' || name === 'SecurityError') {
           setStatus('denied');
@@ -74,17 +81,29 @@ export function useCamera(): UseCameraResult {
     })();
   }, [status, refreshDevices]);
 
-  // Stop tracks on unmount + react to device list changes (only while running).
+  // Pre-permission enumerate so dropdown shows entries (labels stay empty
+  // until permission is granted — browser security).
   useEffect(() => {
+    refreshDevices().catch(() => undefined);
     const onDeviceChange = () => {
-      if (streamRef.current) refreshDevices();
+      refreshDevices().catch(() => undefined);
     };
     navigator.mediaDevices.addEventListener?.('devicechange', onDeviceChange);
     return () => {
       navigator.mediaDevices.removeEventListener?.('devicechange', onDeviceChange);
-      stopCurrent();
     };
-  }, [refreshDevices, stopCurrent]);
+  }, [refreshDevices]);
+
+  // Stop tracks on unmount only — not on every effect re-run.
+  useEffect(() => {
+    return () => {
+      const s = streamRef.current;
+      if (s) {
+        s.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   // Switch when activeDeviceId changes (only if already running).
   useEffect(() => {
@@ -107,10 +126,11 @@ export function useCamera(): UseCameraResult {
           return;
         }
         streamRef.current = next;
-        if (videoRef.current) videoRef.current.srcObject = next;
+        setStream(next);
         setStatus('ready');
       } catch (err) {
         if (cancelled) return;
+        console.error('[camera] switch failed', err);
         setStatus('error');
         setErrorMessage((err as Error)?.message ?? 'Camera error');
       }
@@ -121,5 +141,5 @@ export function useCamera(): UseCameraResult {
     };
   }, [activeDeviceId, stopCurrent]);
 
-  return { videoRef, devices, activeDeviceId, setActiveDeviceId, status, errorMessage, start };
+  return { stream, devices, activeDeviceId, setActiveDeviceId, status, errorMessage, start };
 }

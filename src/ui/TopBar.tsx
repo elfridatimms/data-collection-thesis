@@ -47,11 +47,14 @@ export function TopBar({ mode, onModeChange, devices, activeDeviceId, onDeviceCh
             {devices.length === 0 ? (
               <option value="">{t.noCameras}</option>
             ) : (
-              devices.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label}
-                </option>
-              ))
+              <>
+                {activeDeviceId === null && <option value="">—</option>}
+                {devices.map((d, i) => (
+                  <option key={d.deviceId || `cam-${i}`} value={d.deviceId}>
+                    {d.label}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </label>

@@ -1,28 +1,50 @@
-import { forwardRef, useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import type { CameraStatus } from '../camera/useCamera';
 
 type Props = {
+  stream: MediaStream | null;
   status: CameraStatus;
   errorMessage: string | null;
   onStart: () => void;
+  videoRef: RefObject<HTMLVideoElement>;
   canvasRef: RefObject<HTMLCanvasElement>;
   landmarkCount: number;
 };
 
-export const CameraView = forwardRef<HTMLVideoElement, Props>(function CameraView(
-  { status, errorMessage, onStart, canvasRef, landmarkCount },
-  videoForwardRef,
-) {
+export function CameraView({
+  stream,
+  status,
+  errorMessage,
+  onStart,
+  videoRef,
+  canvasRef,
+  landmarkCount,
+}: Props) {
   const { t } = useLanguage();
-  const showVideo = status === 'ready' || status === 'loading';
-  const innerVideoRef = useRef<HTMLVideoElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
 
-  // Sync the frame's aspect-ratio with the actual webcam stream so video and
-  // canvas overlay align pixel-for-pixel.
+  // Attach stream to <video> whenever either side changes.
   useEffect(() => {
-    const v = innerVideoRef.current;
+    const v = videoRef.current;
+    if (!v) return;
+
+    if (v.srcObject !== stream) {
+      v.srcObject = stream;
+      console.log('[CameraView] srcObject set, has stream:', !!stream);
+    }
+
+    if (stream) {
+      const play = () =>
+        v.play().catch((err) => console.error('[CameraView] play() failed', err));
+      if (v.readyState >= 2) play();
+      else v.addEventListener('loadedmetadata', play, { once: true });
+    }
+  }, [stream, videoRef]);
+
+  // Sync the frame's aspect-ratio with the actual webcam resolution.
+  useEffect(() => {
+    const v = videoRef.current;
     const frame = frameRef.current;
     if (!v || !frame) return;
 
@@ -34,23 +56,13 @@ export const CameraView = forwardRef<HTMLVideoElement, Props>(function CameraVie
     apply();
     v.addEventListener('loadedmetadata', apply);
     return () => v.removeEventListener('loadedmetadata', apply);
-  }, [showVideo]);
-
-  const setVideoRef = (el: HTMLVideoElement | null) => {
-    innerVideoRef.current = el;
-    if (typeof videoForwardRef === 'function') videoForwardRef(el);
-    else if (videoForwardRef) videoForwardRef.current = el;
-  };
+  }, [videoRef, stream]);
 
   return (
     <div className="camera">
       <div className="camera__frame" ref={frameRef}>
-        {showVideo && (
-          <>
-            <video ref={setVideoRef} className="camera__video" autoPlay playsInline muted />
-            <canvas ref={canvasRef} className="camera__canvas" />
-          </>
-        )}
+        <video ref={videoRef} className="camera__video" autoPlay playsInline muted />
+        <canvas ref={canvasRef} className="camera__canvas" />
 
         {status === 'ready' && (
           <div className="camera__badge">
@@ -89,4 +101,4 @@ export const CameraView = forwardRef<HTMLVideoElement, Props>(function CameraVie
       </div>
     </div>
   );
-});
+}
