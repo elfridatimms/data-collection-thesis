@@ -14,6 +14,7 @@ export type UseCameraResult = {
   setActiveDeviceId: (id: string) => void;
   status: CameraStatus;
   errorMessage: string | null;
+  start: () => void;
 };
 
 export function useCamera(): UseCameraResult {
@@ -45,27 +46,23 @@ export function useCamera(): UseCameraResult {
     }
   }, []);
 
-  // Initial: ask permission with a generic constraint, then enumerate.
-  useEffect(() => {
-    let cancelled = false;
+  const start = useCallback(() => {
+    if (status === 'loading' || status === 'ready') return;
+    setErrorMessage(null);
+    setStatus('loading');
 
     (async () => {
-      setStatus('loading');
       try {
         const initial = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        if (cancelled) {
-          initial.getTracks().forEach((t) => t.stop());
-          return;
-        }
         streamRef.current = initial;
         if (videoRef.current) videoRef.current.srcObject = initial;
 
         const cams = await refreshDevices();
-        const currentId = initial.getVideoTracks()[0]?.getSettings().deviceId ?? cams[0]?.deviceId ?? null;
+        const currentId =
+          initial.getVideoTracks()[0]?.getSettings().deviceId ?? cams[0]?.deviceId ?? null;
         setActiveDeviceId(currentId);
         setStatus('ready');
       } catch (err) {
-        if (cancelled) return;
         const name = (err as DOMException)?.name;
         if (name === 'NotAllowedError' || name === 'SecurityError') {
           setStatus('denied');
@@ -75,23 +72,25 @@ export function useCamera(): UseCameraResult {
         }
       }
     })();
+  }, [status, refreshDevices]);
 
+  // Stop tracks on unmount + react to device list changes (only while running).
+  useEffect(() => {
     const onDeviceChange = () => {
-      refreshDevices();
+      if (streamRef.current) refreshDevices();
     };
     navigator.mediaDevices.addEventListener?.('devicechange', onDeviceChange);
-
     return () => {
-      cancelled = true;
       navigator.mediaDevices.removeEventListener?.('devicechange', onDeviceChange);
       stopCurrent();
     };
   }, [refreshDevices, stopCurrent]);
 
-  // Switch when activeDeviceId changes (after initial).
+  // Switch when activeDeviceId changes (only if already running).
   useEffect(() => {
     if (!activeDeviceId) return;
-    const current = streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId;
+    if (!streamRef.current) return;
+    const current = streamRef.current.getVideoTracks()[0]?.getSettings().deviceId;
     if (current === activeDeviceId) return;
 
     let cancelled = false;
@@ -122,5 +121,5 @@ export function useCamera(): UseCameraResult {
     };
   }, [activeDeviceId, stopCurrent]);
 
-  return { videoRef, devices, activeDeviceId, setActiveDeviceId, status, errorMessage };
+  return { videoRef, devices, activeDeviceId, setActiveDeviceId, status, errorMessage, start };
 }

@@ -2,19 +2,6 @@ export type Language = 'hr' | 'en';
 
 export type Mode = 'elbow' | 'wrist' | 'fingers';
 
-export type ExerciseId =
-  | 'elbow.flexionExtension'
-  | 'wrist.flexionExtension'
-  | 'wrist.radialUlnar'
-  | 'fingers.grip'
-  | 'fingers.singleFlex';
-
-export const EXERCISES_BY_MODE: Record<Mode, ExerciseId[]> = {
-  elbow: ['elbow.flexionExtension'],
-  wrist: ['wrist.flexionExtension', 'wrist.radialUlnar'],
-  fingers: ['fingers.grip', 'fingers.singleFlex'],
-};
-
 type Dictionary = {
   appTitle: string;
   exercises: string;
@@ -23,8 +10,15 @@ type Dictionary = {
   language: string;
   cameraPermissionDenied: string;
   cameraLoading: string;
+  startCamera: string;
+  cameraIdleHint: string;
+  landmarksDetected: string;
   modes: Record<Mode, string>;
-  exerciseNames: Record<ExerciseId, string>;
+  feasibility: {
+    DA: string;
+    DJELOMICNO: string;
+    NE: string;
+  };
 };
 
 export const translations: Record<Language, Dictionary> = {
@@ -36,17 +30,18 @@ export const translations: Record<Language, Dictionary> = {
     language: 'Jezik',
     cameraPermissionDenied: 'Pristup kameri je odbijen. Dozvoli pristup u postavkama preglednika.',
     cameraLoading: 'Učitavanje kamere…',
+    startCamera: 'Pokreni kameru',
+    cameraIdleHint: 'Klikni za uključivanje kamere',
+    landmarksDetected: 'Točke',
     modes: {
       elbow: 'Lakat',
       wrist: 'Zglob',
       fingers: 'Prsti',
     },
-    exerciseNames: {
-      'elbow.flexionExtension': 'Fleksija – ekstenzija',
-      'wrist.flexionExtension': 'Fleksija – ekstenzija',
-      'wrist.radialUlnar': 'Radijalna / ulnarna devijacija',
-      'fingers.grip': 'Stisak (otvori / zatvori)',
-      'fingers.singleFlex': 'Pojedinačna fleksija',
+    feasibility: {
+      DA: 'Moguće',
+      DJELOMICNO: 'Djelomično',
+      NE: 'Nije moguće',
     },
   },
   en: {
@@ -57,17 +52,18 @@ export const translations: Record<Language, Dictionary> = {
     language: 'Language',
     cameraPermissionDenied: 'Camera access denied. Enable it in your browser settings.',
     cameraLoading: 'Loading camera…',
+    startCamera: 'Start camera',
+    cameraIdleHint: 'Click to turn the camera on',
+    landmarksDetected: 'Landmarks',
     modes: {
       elbow: 'Elbow',
       wrist: 'Wrist',
       fingers: 'Fingers',
     },
-    exerciseNames: {
-      'elbow.flexionExtension': 'Flexion – extension',
-      'wrist.flexionExtension': 'Flexion – extension',
-      'wrist.radialUlnar': 'Radial / ulnar deviation',
-      'fingers.grip': 'Grip (open / close)',
-      'fingers.singleFlex': 'Single-finger flexion',
+    feasibility: {
+      DA: 'Feasible',
+      DJELOMICNO: 'Partial',
+      NE: 'Not feasible',
     },
   },
 };
